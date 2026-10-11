@@ -1,4 +1,5 @@
 import {
+  AST_NODE_TYPES,
   ASTUtils,
   ESLintUtils,
   ParserServicesWithTypeInformation,
@@ -180,6 +181,13 @@ const noExcessProperties = createRule({
 
     return {
       AssignmentExpression(node) {
+        if (
+          node.left.type === AST_NODE_TYPES.ObjectPattern ||
+          node.left.type === AST_NODE_TYPES.ArrayPattern
+        ) {
+          return;
+        }
+
         const leftType = services.getTypeAtLocation(node.left);
         const rightType = services.getTypeAtLocation(node.right);
 
@@ -261,7 +269,16 @@ const noExcessProperties = createRule({
         let returnType = services.getTypeAtLocation(
           functionNode.returnType.typeAnnotation,
         );
-        if (
+        if (functionNode.generator) {
+          // Generator<T, TReturn, TNext>, AsyncGenerator<T, TReturn, TNext>, etc.
+          const generatorTypes = tsutils.isTypeReference(returnType)
+            ? typeChecker.getTypeArguments(returnType)
+            : [];
+          if (generatorTypes.length < 2) {
+            return;
+          }
+          returnType = generatorTypes[1];
+        } else if (
           (returnType as TypeOptionalSymbol).symbol?.name === "Promise" &&
           tsutils.isTypeReference(returnType)
         ) {
