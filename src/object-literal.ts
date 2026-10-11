@@ -18,6 +18,9 @@ type TypeOptionalSymbol = Omit<ts.Type, "symbol"> & {
   symbol: ts.Symbol | undefined;
 };
 
+// Guards against infinitely recursive types, e.g. `type Test = () => Test`
+const maxCompareDepth = 10;
+
 const createRule = ESLintUtils.RuleCreator<PluginDocs>(
   () => "https://github.com/unimorphic/eslint-plugin-no-excess-properties",
 );
@@ -110,6 +113,7 @@ function compareTypes(
   rightNode: TSESTree.Node,
   context: Readonly<RuleContext<"noExcessProperties" | "noExcessProperty", []>>,
   services: ParserServicesWithTypeInformation,
+  depth = 0,
 ): void {
   const allLeftTypes = splitTypes(
     leftTypes.flatMap((t) => tsutils.unionConstituents(t)),
@@ -120,6 +124,7 @@ function compareTypes(
 
   for (let i = 0; i < allLeftTypes.advancedTypes.length; i++) {
     if (
+      depth < maxCompareDepth &&
       allLeftTypes.advancedTypes[i].length > 0 &&
       allRightTypes.advancedTypes[i].length > 0
     ) {
@@ -129,6 +134,7 @@ function compareTypes(
         rightNode,
         context,
         services,
+        depth + 1,
       );
     }
   }
