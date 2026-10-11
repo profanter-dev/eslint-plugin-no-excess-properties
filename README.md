@@ -14,16 +14,27 @@ npm install --save-dev eslint-plugin-no-excess-properties
 
 In the `eslint.config.mjs` file:
 
+The rule requires [typed linting](https://typescript-eslint.io/getting-started/typed-linting), so the TypeScript parser and `parserOptions.projectService` must be set for the files it runs on. If your config already enables typed linting, only the `extends`/`plugins` and `rules` parts are needed.
+
 ### Basic
 
 ```
 import { defineConfig } from "eslint/config";
+import tsParser from "@typescript-eslint/parser";
 import noExcessProperties from "eslint-plugin-no-excess-properties";
 
 export default defineConfig({
+  files: ["**/*.ts", "**/*.tsx"],
   extends: [
     noExcessProperties.configs.recommended,
   ],
+  languageOptions: {
+    parser: tsParser,
+    parserOptions: {
+      projectService: true,
+      tsconfigRootDir: import.meta.dirname,
+    },
+  },
 })
 ```
 
