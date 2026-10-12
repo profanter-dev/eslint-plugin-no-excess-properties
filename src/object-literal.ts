@@ -201,10 +201,7 @@ const noExcessProperties = createRule({
 
     return {
       AssignmentExpression(node) {
-        if (
-          node.left.type === AST_NODE_TYPES.ObjectPattern ||
-          node.left.type === AST_NODE_TYPES.ArrayPattern
-        ) {
+        if (node.left.type === AST_NODE_TYPES.ObjectPattern) {
           return;
         }
 
