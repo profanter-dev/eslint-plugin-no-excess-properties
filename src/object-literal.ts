@@ -25,6 +25,17 @@ const createRule = ESLintUtils.RuleCreator<PluginDocs>(
   () => "https://github.com/unimorphic/eslint-plugin-no-excess-properties",
 );
 
+const propertyNamesCache = new WeakMap<ts.Type, Set<string>>();
+
+function getPropertyNames(type: ts.Type): Set<string> {
+  let propertyNames = propertyNamesCache.get(type);
+  if (!propertyNames) {
+    propertyNames = new Set(type.getProperties().map((p) => p.name));
+    propertyNamesCache.set(type, propertyNames);
+  }
+  return propertyNames;
+}
+
 function isObjectLiteral(type: ts.Type): boolean {
   return (
     (type as TypeOptionalSymbol).symbol !== undefined &&
@@ -148,7 +159,7 @@ function compareTypes(
 
     let bestMatchExcessProperties: ts.Symbol[] | null = null;
     for (const leftType of allLeftTypes.basicTypes) {
-      const leftPropertyNames = leftType.getProperties().map((p) => p.name);
+      const leftPropertyNames = getPropertyNames(leftType);
 
       if (
         leftType.getStringIndexType() !== undefined ||
@@ -160,16 +171,19 @@ function compareTypes(
 
       const excessProperties = rightProperties.filter(
         (p) =>
-          !leftPropertyNames.includes(p.name) &&
+          !leftPropertyNames.has(p.name) &&
           (p.flags & ts.SymbolFlags.Optional) === 0,
       );
 
       if (
-        leftPropertyNames.length > 0 &&
+        leftPropertyNames.size > 0 &&
         (bestMatchExcessProperties === null ||
           excessProperties.length < bestMatchExcessProperties.length)
       ) {
         bestMatchExcessProperties = excessProperties;
+        if (excessProperties.length === 0) {
+          break;
+        }
       }
     }
 
