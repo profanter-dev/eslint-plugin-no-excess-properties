@@ -1,7 +1,10 @@
 import fs from "fs";
+import path from "path";
 import objectLiteral from "./object-literal";
 
-const pkg = JSON.parse(fs.readFileSync("./package.json", "utf8")) as {
+const pkg = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "../package.json"), "utf8"),
+) as {
   name: string;
   version: string;
 };

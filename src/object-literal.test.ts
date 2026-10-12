@@ -405,6 +405,51 @@ ruleTester.run("object-literal", objectLiteral, {
 ruleTester.run("object-literal", objectLiteral, {
   valid: [
     `
+      type Test = () => Test;
+      declare const test1: Test;
+      const test2: Test = test1;
+    `,
+    `
+      type Test = Test[];
+      declare const test1: Test;
+      const test2: Test = test1;
+    `,
+    `
+      type Test = string | number | boolean | null | Test[] | { [key: string]: Test };
+      declare const test1: Test;
+      const test2: Test = test1;
+    `,
+    `
+      interface Test { (): Test; prop1: number }
+      declare const test1: Test;
+      const test2: Test = test1;
+    `,
+    `
+      type Test<T> = T | (() => Test<T>);
+      declare const test1: Test<{ prop1: number }>;
+      const test2: Test<{ prop1: number }> = test1;
+    `,
+    `
+      type Test<T> = () => Test<[T]>;
+      declare const test1: Test<number>;
+      const test2: Test<number> = test1;
+    `,
+  ],
+  invalid: [
+    {
+      code: `
+        type Test = () => Test | { prop1: number };
+        const test1 = { prop1: 1, prop2: 2 };
+        const test2: Test = () => test1;
+      `,
+      errors: [createError({ column: 29, endColumn: 40, line: 4 })],
+    },
+  ],
+});
+
+ruleTester.run("object-literal", objectLiteral, {
+  valid: [
+    `
       let prop1: number;
       ({ prop1 } = { prop1: 1, prop2: 2 });
     `,

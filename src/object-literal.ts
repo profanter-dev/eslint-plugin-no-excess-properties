@@ -19,9 +19,23 @@ type TypeOptionalSymbol = Omit<ts.Type, "symbol"> & {
   symbol: ts.Symbol | undefined;
 };
 
+// Guards against infinitely recursive types, e.g. `type Test = () => Test`
+const maxCompareDepth = 10;
+
 const createRule = ESLintUtils.RuleCreator<PluginDocs>(
   () => "https://github.com/unimorphic/eslint-plugin-no-excess-properties",
 );
+
+const propertyNamesCache = new WeakMap<ts.Type, Set<string>>();
+
+function getPropertyNames(type: ts.Type): Set<string> {
+  let propertyNames = propertyNamesCache.get(type);
+  if (!propertyNames) {
+    propertyNames = new Set(type.getProperties().map((p) => p.name));
+    propertyNamesCache.set(type, propertyNames);
+  }
+  return propertyNames;
+}
 
 function isObjectLiteral(type: ts.Type): boolean {
   return (
@@ -111,6 +125,7 @@ function compareTypes(
   rightNode: TSESTree.Node,
   context: Readonly<RuleContext<"noExcessProperties" | "noExcessProperty", []>>,
   services: ParserServicesWithTypeInformation,
+  depth = 0,
 ): void {
   const allLeftTypes = splitTypes(
     leftTypes.flatMap((t) => tsutils.unionConstituents(t)),
@@ -121,6 +136,7 @@ function compareTypes(
 
   for (let i = 0; i < allLeftTypes.advancedTypes.length; i++) {
     if (
+      depth < maxCompareDepth &&
       allLeftTypes.advancedTypes[i].length > 0 &&
       allRightTypes.advancedTypes[i].length > 0
     ) {
@@ -130,6 +146,7 @@ function compareTypes(
         rightNode,
         context,
         services,
+        depth + 1,
       );
     }
   }
@@ -143,7 +160,7 @@ function compareTypes(
 
     let bestMatchExcessProperties: ts.Symbol[] | null = null;
     for (const leftType of allLeftTypes.basicTypes) {
-      const leftPropertyNames = leftType.getProperties().map((p) => p.name);
+      const leftPropertyNames = getPropertyNames(leftType);
 
       if (
         leftType.getStringIndexType() !== undefined ||
@@ -155,16 +172,19 @@ function compareTypes(
 
       const excessProperties = rightProperties.filter(
         (p) =>
-          !leftPropertyNames.includes(p.name) &&
+          !leftPropertyNames.has(p.name) &&
           (p.flags & ts.SymbolFlags.Optional) === 0,
       );
 
       if (
-        leftPropertyNames.length > 0 &&
+        leftPropertyNames.size > 0 &&
         (bestMatchExcessProperties === null ||
           excessProperties.length < bestMatchExcessProperties.length)
       ) {
         bestMatchExcessProperties = excessProperties;
+        if (excessProperties.length === 0) {
+          break;
+        }
       }
     }
 
